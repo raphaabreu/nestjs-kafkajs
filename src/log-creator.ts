@@ -9,7 +9,7 @@ export function logCreator() {
 
     const scoppedLogger = rootLogger.createScope(extra);
 
-    if (extra.error == 'The group is rebalancing, so a rejoin is needed') {
+    if (extra.error === 'The group is rebalancing, so a rejoin is needed') {
       level = logLevel.INFO;
     }
 
