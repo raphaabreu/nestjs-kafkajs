@@ -1,7 +1,9 @@
-import { DynamicModule } from '@nestjs/common';
+import { DynamicModule, Global, Module } from '@nestjs/common';
 import { Kafka, KafkaConfig } from 'kafkajs';
 import { logCreator } from './log-creator';
 
+@Global()
+@Module({})
 export class KafkaModule {
   static forRoot(config?: KafkaConfig): DynamicModule {
     config = {

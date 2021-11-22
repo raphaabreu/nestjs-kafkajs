@@ -20,7 +20,7 @@
     "type": "git",
     "url": "git+https://github.com/raphaabreu/nestjs-kafkajs.git"
   },
-  "author": "",
+  "author": "Raphael Lorenzeto de Abreu <raphael.lorenzeto@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/raphaabreu/nestjs-kafkajs/issues"
