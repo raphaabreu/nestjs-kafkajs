@@ -5,8 +5,8 @@ import { logCreator } from './log-creator';
 @Global()
 @Module({})
 export class KafkaModule {
-  static forRoot(config?: KafkaConfig): DynamicModule {
-    config = {
+  static forRoot(config?: Partial<KafkaConfig>): DynamicModule {
+    const final = {
       brokers: (process.env.KAFKA || 'localhost:9092').split(','),
       ssl: true,
       logCreator,
@@ -18,7 +18,7 @@ export class KafkaModule {
       providers: [
         {
           provide: Kafka,
-          useFactory: () => new Kafka(config),
+          useFactory: () => new Kafka(final),
         },
       ],
       exports: [Kafka],

@@ -7,6 +7,10 @@ export function logCreator() {
   return ({ level, log }) => {
     const { message, timestamp, logger, ...extra } = log;
 
+    if (extra.data) {
+      extra.data = JSON.stringify(extra.data);
+    }
+
     const scoppedLogger = rootLogger.createScope(extra);
 
     if (extra.error === 'The group is rebalancing, so a rejoin is needed') {
