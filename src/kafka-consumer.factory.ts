@@ -2,25 +2,30 @@ import { StructuredLogger } from '@raphaabreu/nestjs-opensearch-structured-logge
 import { Injectable } from '@nestjs/common';
 import { Consumer, ConsumerConfig, ConsumerRunConfig, ConsumerSubscribeTopic, Kafka } from 'kafkajs';
 
-let consumers: Consumer[] = [];
 const HEARTBEAT_CHECK_INTERVAL = 1 * 60 * 1000; // 1 minute
 
 @Injectable()
 export class KafkaConsumerFactory {
   constructor(private kafka: Kafka) {}
 
-  async start(
+  create(subscribeTopic: ConsumerSubscribeTopic, config: ConsumerConfig, runConfig: ConsumerRunConfig): Consumer {
+    const consumer = this.kafka.consumer(config);
+
+    this.start(consumer, subscribeTopic, config, runConfig);
+
+    return consumer;
+  }
+
+  private async start(
+    consumer: Consumer,
     subscribeTopic: ConsumerSubscribeTopic,
     config: ConsumerConfig,
     runConfig: ConsumerRunConfig,
   ): Promise<void> {
-    const consumer = this.kafka.consumer(config);
-
     try {
       await consumer.connect();
       await consumer.subscribe(subscribeTopic);
       await consumer.run(runConfig);
-      consumers.push(consumer);
     } catch (error) {
       logger.error('Consumer failed to start, terminating process', error);
       setTimeout(() => process.exit(1), 10000);
@@ -40,7 +45,7 @@ export class KafkaConsumerFactory {
         clearInterval(intervalHandler);
 
         await this.stop(consumer);
-        await this.start(subscribeTopic, config, runConfig);
+        await this.start(consumer, subscribeTopic, config, runConfig);
       }
     }, HEARTBEAT_CHECK_INTERVAL);
   }
@@ -48,7 +53,6 @@ export class KafkaConsumerFactory {
   private async stop(consumer: Consumer) {
     await consumer.stop();
     await consumer.disconnect();
-    consumers = consumers.filter((c) => c !== consumer);
   }
 }
 
