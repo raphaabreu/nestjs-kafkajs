@@ -1,5 +1,6 @@
 import { DynamicModule, Global, Module } from '@nestjs/common';
 import { Kafka, KafkaConfig } from 'kafkajs';
+import { KafkaConsumerFactory } from './kafka-consumer.factory';
 import { logCreator } from './log-creator';
 
 @Global()
@@ -20,8 +21,9 @@ export class KafkaModule {
           provide: Kafka,
           useFactory: () => new Kafka(final),
         },
+        KafkaConsumerFactory,
       ],
-      exports: [Kafka],
+      exports: [Kafka, KafkaConsumerFactory],
     };
   }
 }
