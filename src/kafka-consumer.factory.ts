@@ -21,7 +21,7 @@ export class KafkaConsumerFactory {
     subscribeTopic: ConsumerSubscribeTopic,
     config: ConsumerConfig,
     runConfig: ConsumerRunConfig,
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       await consumer.connect();
       await consumer.subscribe(subscribeTopic);
@@ -29,7 +29,7 @@ export class KafkaConsumerFactory {
     } catch (error) {
       logger.error('Consumer failed to start, terminating process', error);
       setTimeout(() => process.exit(1), 10000);
-      return;
+      return false;
     }
 
     let lastHeartbeat = new Date();
@@ -57,6 +57,7 @@ export class KafkaConsumerFactory {
     }, HEARTBEAT_CHECK_INTERVAL);
 
     logger.log('Started consumer');
+    return true;
   }
 
   private async restart(
@@ -67,7 +68,11 @@ export class KafkaConsumerFactory {
   ): Promise<void> {
     await consumer.stop();
     await consumer.disconnect();
-    await this.start(consumer, subscribeTopic, config, runConfig);
+    const started = await this.start(consumer, subscribeTopic, config, runConfig);
+
+    if (!started) {
+      throw new Error('Consumer failed to start');
+    }
   }
 }
 
