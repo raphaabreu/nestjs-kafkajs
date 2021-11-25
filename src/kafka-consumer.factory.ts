@@ -44,15 +44,30 @@ export class KafkaConsumerFactory {
 
         clearInterval(intervalHandler);
 
-        await this.stop(consumer);
-        await this.start(consumer, subscribeTopic, config, runConfig);
+        try {
+          await Promise.race<void>([
+            this.restart(consumer, subscribeTopic, config, runConfig),
+            new Promise<void>((resolve, reject) => setTimeout(() => reject(), 10000)),
+          ]);
+        } catch (error) {
+          logger.error('Consumer failed to restart, terminating process', error);
+          setTimeout(() => process.exit(1), 10000);
+        }
       }
     }, HEARTBEAT_CHECK_INTERVAL);
+
+    logger.log('Started consumer');
   }
 
-  private async stop(consumer: Consumer) {
+  private async restart(
+    consumer: Consumer,
+    subscribeTopic: ConsumerSubscribeTopic,
+    config: ConsumerConfig,
+    runConfig: ConsumerRunConfig,
+  ): Promise<void> {
     await consumer.stop();
     await consumer.disconnect();
+    await this.start(consumer, subscribeTopic, config, runConfig);
   }
 }
 
