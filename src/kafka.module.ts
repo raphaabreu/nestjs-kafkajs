@@ -7,9 +7,11 @@ import { logCreator } from './log-creator';
 @Module({})
 export class KafkaModule {
   static forRoot(config?: Partial<KafkaConfig>): DynamicModule {
-    const final = {
+    const guessSsl = (config.brokers || process.env.KAFKA || 'localhost:9092').indexOf('localhost') == -1;
+
+    let final = {
       brokers: (process.env.KAFKA || 'localhost:9092').split(','),
-      ssl: true,
+      ssl: guessSsl,
       logCreator,
       ...config,
     };
