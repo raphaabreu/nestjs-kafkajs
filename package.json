@@ -28,6 +28,7 @@
   "homepage": "https://github.com/raphaabreu/nestjs-kafkajs#readme",
   "peerDependencies": {
     "kafkajs": "^1.15.0",
+    "prom-client": "^14.0.1",
     "@nestjs/common": "^8.0.1",
     "@raphaabreu/nestjs-opensearch-structured-logger": "^0.1.3"
   },

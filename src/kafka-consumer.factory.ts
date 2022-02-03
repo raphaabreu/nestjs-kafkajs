@@ -1,16 +1,93 @@
 import { StructuredLogger } from '@raphaabreu/nestjs-opensearch-structured-logger';
 import { Injectable } from '@nestjs/common';
 import { Consumer, ConsumerConfig, ConsumerRunConfig, ConsumerSubscribeTopic, Kafka } from 'kafkajs';
+import promClient from 'prom-client';
 
 const HEARTBEAT_CHECK_INTERVAL = 1 * 60 * 1000; // 1 minute
 
 @Injectable()
 export class KafkaConsumerFactory {
+  private readonly histogram = new promClient.Histogram({
+    name: 'kafkajs_single_consumption_duration',
+    help: 'KafkaJs single message consumption duration in seconds',
+    labelNames: ['topic', 'groupId'],
+    buckets: [0.0001, 0.001, 0.01, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+  });
+  private readonly failureCounter = new promClient.Counter({
+    name: 'kafkajs_batch_consumption_failed_count',
+    help: 'KafkaJs batch message consumption failures',
+    labelNames: ['topic', 'groupId', 'error'],
+  });
+  private readonly batchSize = new promClient.Summary({
+    name: 'kafkajs_batch_consumption_size',
+    help: 'KafkaJs batch message consumption size',
+    labelNames: ['topic', 'groupId'],
+  });
+
   constructor(private kafka: Kafka) {}
 
   create(subscribeTopic: ConsumerSubscribeTopic, config: ConsumerConfig, runConfig: ConsumerRunConfig): Consumer {
     const consumer = this.kafka.consumer(config);
 
+    if (runConfig.eachMessage) {
+      const prev = runConfig.eachMessage;
+
+      runConfig.eachMessage = async (payload) => {
+        const labels = {
+          topic: subscribeTopic.topic.toString(),
+          groupId: config.groupId,
+        };
+        const stopTimer = this.histogram.startTimer({
+          topic: subscribeTopic.topic.toString(),
+          groupId: config.groupId,
+        });
+
+        try {
+          const result = await prev(payload);
+
+          stopTimer();
+
+          return result;
+        } catch (error) {
+          stopTimer();
+
+          this.failureCounter.inc({ ...labels, error: error.message || error });
+
+          throw error;
+        }
+      };
+    }
+
+    if (runConfig.eachBatch) {
+      const prev = runConfig.eachBatch;
+
+      runConfig.eachBatch = async (payload) => {
+        const labels = {
+          topic: subscribeTopic.topic.toString(),
+          groupId: config.groupId,
+        };
+        const stopTimer = this.histogram.startTimer({
+          topic: subscribeTopic.topic.toString(),
+          groupId: config.groupId,
+        });
+
+        this.batchSize.observe(labels, payload.batch.messages.length);
+
+        try {
+          const result = await prev(payload);
+
+          stopTimer();
+
+          return result;
+        } catch (error) {
+          stopTimer();
+
+          this.failureCounter.inc({ ...labels, error: error.message || error });
+
+          throw error;
+        }
+      };
+    }
     this.start(consumer, subscribeTopic, config, runConfig);
 
     return consumer;
