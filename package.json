@@ -30,7 +30,7 @@
     "kafkajs": "^1.15.0",
     "prom-client": "^14.0.1",
     "@nestjs/common": "^8.0.1",
-    "@raphaabreu/nestjs-opensearch-structured-logger": "^0.1.3"
+    "@raphaabreu/nestjs-opensearch-structured-logger": "^0.2.2"
   },
   "devDependencies": {
     "kafkajs": "^1.15.0",
