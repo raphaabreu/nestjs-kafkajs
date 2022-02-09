@@ -14,8 +14,8 @@ import promClient from 'prom-client';
 const HEARTBEAT_CHECK_INTERVAL = 1 * 60 * 1000; // 1 minute
 
 export type ExtendedConsumerRunConfig = {
-  skipAwaitEach: boolean;
-  errorHandler: (error: any) => any;
+  skipAwaitEach?: boolean;
+  errorHandler?: (error: any) => any;
 } & ConsumerRunConfig;
 
 @Injectable()
