@@ -51,17 +51,17 @@ export class KafkaConsumerFactory {
       groupId: config.groupId,
     };
 
-    const logger = new StructuredLogger(`${subscribeTopic.topic.toString()}`);
+    const consumerLogger = new StructuredLogger(`${subscribeTopic.topic.toString()}`);
 
-    logger.appendScope(labels);
+    consumerLogger.appendScope(labels);
 
     if (runConfig.eachMessage) {
       const prev = runConfig.eachMessage;
 
       runConfig.eachMessage = async (payload) => {
-        const promise = this.handleEach(labels, prev, logger, runConfig.errorHandler, payload);
+        const promise = this.handleEach(labels, prev, consumerLogger, runConfig.errorHandler, payload);
 
-        if (runConfig.skipAwaitEach != true) {
+        if (runConfig.skipAwaitEach !== true) {
           await promise;
         }
       };
@@ -71,9 +71,9 @@ export class KafkaConsumerFactory {
       const prev = runConfig.eachBatch;
 
       runConfig.eachBatch = async (payload) => {
-        const promise = this.handleEach(labels, prev, logger, runConfig.errorHandler, payload);
+        const promise = this.handleEach(labels, prev, consumerLogger, runConfig.errorHandler, payload);
 
-        if (runConfig.skipAwaitEach != true) {
+        if (runConfig.skipAwaitEach !== true) {
           await promise;
         }
       };
@@ -145,7 +145,7 @@ export class KafkaConsumerFactory {
   private async handleEach<T extends EachBatchPayload | EachMessagePayload>(
     labels: Partial<Record<'topic' | 'groupId', string | number>>,
     prev: (payload: T) => Promise<void>,
-    logger: StructuredLogger,
+    consumerLogger: StructuredLogger,
     errorHandler: (error: any) => any,
     payload: T,
   ): Promise<void> {
@@ -170,15 +170,15 @@ export class KafkaConsumerFactory {
       if (errorHandler) {
         const final = errorHandler(error);
         if (final) {
-          logger.error('Failed to consume', final);
+          consumerLogger.error('Failed to consume', final);
           throw final;
         }
       } else {
-        logger.error('Failed to consume', error);
+        consumerLogger.error('Failed to consume', error);
         throw error;
       }
 
-      logger.error('Ignoring consumption failure', error);
+      consumerLogger.error('Ignoring consumption failure', error);
     }
   }
 }
