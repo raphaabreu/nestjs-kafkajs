@@ -1,59 +1,68 @@
 import { StructuredLogger } from '@raphaabreu/nestjs-opensearch-structured-logger';
 import { Injectable } from '@nestjs/common';
-import { Consumer, ConsumerConfig, ConsumerRunConfig, ConsumerSubscribeTopic, Kafka } from 'kafkajs';
+import {
+  Consumer,
+  ConsumerConfig,
+  ConsumerRunConfig,
+  ConsumerSubscribeTopic,
+  EachBatchPayload,
+  EachMessagePayload,
+  Kafka,
+} from 'kafkajs';
 import promClient from 'prom-client';
 
 const HEARTBEAT_CHECK_INTERVAL = 1 * 60 * 1000; // 1 minute
 
+export type ExtendedConsumerRunConfig = {
+  skipAwaitEach: boolean;
+  errorHandler: (error: any) => any;
+} & ConsumerRunConfig;
+
 @Injectable()
 export class KafkaConsumerFactory {
   private readonly histogram = new promClient.Histogram({
-    name: 'kafkajs_single_consumption_duration',
-    help: 'KafkaJs single message consumption duration in seconds',
+    name: 'kafkajs_consumption_duration',
+    help: 'KafkaJs message consumption duration in seconds',
     labelNames: ['topic', 'groupId'],
     buckets: [0.0001, 0.001, 0.01, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
   });
   private readonly failureCounter = new promClient.Counter({
-    name: 'kafkajs_batch_consumption_failed_count',
-    help: 'KafkaJs batch message consumption failures',
+    name: 'kafkajs_consumption_failed_count',
+    help: 'KafkaJs message consumption failures',
     labelNames: ['topic', 'groupId', 'error'],
   });
   private readonly batchSize = new promClient.Summary({
-    name: 'kafkajs_batch_consumption_size',
-    help: 'KafkaJs batch message consumption size',
+    name: 'kafkajs_consumption_batch_size',
+    help: 'KafkaJs message consumption batch size',
     labelNames: ['topic', 'groupId'],
   });
 
   constructor(private kafka: Kafka) {}
 
-  create(subscribeTopic: ConsumerSubscribeTopic, config: ConsumerConfig, runConfig: ConsumerRunConfig): Consumer {
+  create(
+    subscribeTopic: ConsumerSubscribeTopic,
+    config: ConsumerConfig,
+    runConfig: ExtendedConsumerRunConfig,
+  ): Consumer {
     const consumer = this.kafka.consumer(config);
+
+    const labels = {
+      topic: subscribeTopic.topic.toString(),
+      groupId: config.groupId,
+    };
+
+    const logger = new StructuredLogger(`${subscribeTopic.topic.toString()}`);
+
+    logger.appendScope(labels);
 
     if (runConfig.eachMessage) {
       const prev = runConfig.eachMessage;
 
       runConfig.eachMessage = async (payload) => {
-        const labels = {
-          topic: subscribeTopic.topic.toString(),
-          groupId: config.groupId,
-        };
-        const stopTimer = this.histogram.startTimer({
-          topic: subscribeTopic.topic.toString(),
-          groupId: config.groupId,
-        });
+        const promise = this.handleEach(labels, prev, logger, runConfig.errorHandler, payload);
 
-        try {
-          const result = await prev(payload);
-
-          stopTimer();
-
-          return result;
-        } catch (error) {
-          stopTimer();
-
-          this.failureCounter.inc({ ...labels, error: error.message || error });
-
-          throw error;
+        if (runConfig.skipAwaitEach != true) {
+          await promise;
         }
       };
     }
@@ -62,29 +71,10 @@ export class KafkaConsumerFactory {
       const prev = runConfig.eachBatch;
 
       runConfig.eachBatch = async (payload) => {
-        const labels = {
-          topic: subscribeTopic.topic.toString(),
-          groupId: config.groupId,
-        };
-        const stopTimer = this.histogram.startTimer({
-          topic: subscribeTopic.topic.toString(),
-          groupId: config.groupId,
-        });
+        const promise = this.handleEach(labels, prev, logger, runConfig.errorHandler, payload);
 
-        this.batchSize.observe(labels, payload.batch.messages.length);
-
-        try {
-          const result = await prev(payload);
-
-          stopTimer();
-
-          return result;
-        } catch (error) {
-          stopTimer();
-
-          this.failureCounter.inc({ ...labels, error: error.message || error });
-
-          throw error;
+        if (runConfig.skipAwaitEach != true) {
+          await promise;
         }
       };
     }
@@ -149,6 +139,46 @@ export class KafkaConsumerFactory {
 
     if (!started) {
       throw new Error('Consumer failed to start');
+    }
+  }
+
+  private async handleEach<T extends EachBatchPayload | EachMessagePayload>(
+    labels: Partial<Record<'topic' | 'groupId', string | number>>,
+    prev: (payload: T) => Promise<void>,
+    logger: StructuredLogger,
+    errorHandler: (error: any) => any,
+    payload: T,
+  ): Promise<void> {
+    const stopTimer = this.histogram.startTimer(labels);
+
+    const messageCount =
+      ((payload as EachBatchPayload).batch && (payload as EachBatchPayload).batch.messages.length) || 1;
+
+    this.batchSize.observe(labels, messageCount);
+
+    try {
+      const result = await prev(payload);
+
+      stopTimer();
+
+      return result;
+    } catch (error) {
+      stopTimer();
+
+      this.failureCounter.inc({ ...labels, error: error.message || error }, messageCount);
+
+      if (errorHandler) {
+        const final = errorHandler(error);
+        if (final) {
+          logger.error('Failed to consume', final);
+          throw final;
+        }
+      } else {
+        logger.error('Failed to consume', error);
+        throw error;
+      }
+
+      logger.error('Ignoring consumption failure', error);
     }
   }
 }

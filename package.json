@@ -35,7 +35,7 @@
   "devDependencies": {
     "kafkajs": "^1.15.0",
     "@nestjs/common": "^8.2.1",
-    "@raphaabreu/nestjs-opensearch-structured-logger": "^0.1.3",
+    "@raphaabreu/nestjs-opensearch-structured-logger": "^0.2.2",
     "@types/node": "^16.11.7",
     "ioredis": "^4.28.0",
     "prettier": "^2.4.1",
