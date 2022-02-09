@@ -31,10 +31,11 @@ export class KafkaConsumerFactory {
     help: 'KafkaJs message consumption failures',
     labelNames: ['topic', 'groupId', 'error'],
   });
-  private readonly batchSize = new promClient.Summary({
+  private readonly batchSize = new promClient.Histogram({
     name: 'kafkajs_consumption_batch_size',
     help: 'KafkaJs message consumption batch size',
     labelNames: ['topic', 'groupId'],
+    buckets: [1, 5, 10, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
   });
 
   constructor(private kafka: Kafka) {}
