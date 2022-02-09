@@ -51,7 +51,7 @@ export class KafkaConsumerFactory {
       groupId: config.groupId,
     };
 
-    const consumerLogger = new StructuredLogger(`${subscribeTopic.topic.toString()}`);
+    const consumerLogger = new StructuredLogger(`${labels.groupId}/${labels.topic}`);
 
     consumerLogger.appendScope(labels);
 
