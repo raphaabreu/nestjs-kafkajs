@@ -27,13 +27,13 @@
   },
   "homepage": "https://github.com/raphaabreu/nestjs-kafkajs#readme",
   "peerDependencies": {
-    "kafkajs": "^1.15.0",
-    "prom-client": "^14.0.1",
-    "@nestjs/common": "^8.0.1",
-    "@raphaabreu/nestjs-opensearch-structured-logger": "^0.2.2"
+    "kafkajs": ">=1.15.0",
+    "prom-client": ">=14.0.1",
+    "@nestjs/common": ">=8.0.1",
+    "@raphaabreu/nestjs-opensearch-structured-logger": ">=0.2.2"
   },
   "devDependencies": {
-    "kafkajs": "^1.15.0",
+    "kafkajs": ">=1.15.0",
     "@nestjs/common": "^8.2.1",
     "@raphaabreu/nestjs-opensearch-structured-logger": "^0.2.2",
     "@types/node": "^16.11.7",
