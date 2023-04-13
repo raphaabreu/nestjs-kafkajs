@@ -20,7 +20,7 @@ export function logCreator() {
 
     const scopedLogger = rootLogger.createScope(extra);
 
-    if (messagesAsInfo.includes(extra.error)) {
+    if (messagesAsInfo.includes(extra.error) || messagesAsInfo.includes(message)) {
       level = logLevel.INFO;
     }
 
