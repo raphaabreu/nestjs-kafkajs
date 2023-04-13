@@ -1,6 +1,13 @@
 import { logLevel } from 'kafkajs';
 import { StructuredLogger } from '@raphaabreu/nestjs-opensearch-structured-logger';
 
+const messagesAsInfo = [
+  'The group is rebalancing, so a rejoin is needed',
+  'Connection timeout',
+  'Connection error: Client network socket disconnected before secure TLS connection was established',
+  'Failed to connect to seed broker, trying another broker from the list: Connection timeout',
+];
+
 export function logCreator() {
   const rootLogger = new StructuredLogger('Kafka');
 
@@ -11,25 +18,25 @@ export function logCreator() {
       extra.data = JSON.stringify(extra.data);
     }
 
-    const scoppedLogger = rootLogger.createScope(extra);
+    const scopedLogger = rootLogger.createScope(extra);
 
-    if (extra.error === 'The group is rebalancing, so a rejoin is needed') {
+    if (messagesAsInfo.includes(extra.error)) {
       level = logLevel.INFO;
     }
 
     switch (level) {
       case logLevel.ERROR:
-      case logLevel.NOTHING:
-        scoppedLogger.error(message, '');
+        scopedLogger.error(message, '');
         break;
       case logLevel.WARN:
-        scoppedLogger.warn(message);
+        scopedLogger.warn(message);
         break;
+      case logLevel.NOTHING:
       case logLevel.INFO:
-        scoppedLogger.log(message);
+        scopedLogger.log(message);
         break;
       case logLevel.DEBUG:
-        scoppedLogger.debug(message);
+        scopedLogger.debug(message);
         break;
     }
   };
